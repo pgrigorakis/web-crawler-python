@@ -29,9 +29,6 @@ async def main() -> None:
     print(f"Starting async crawl of: {base_url}")
 
     page_data = await crawl_site_async(base_url, max_concurrency, max_pages)
-    # print(f"Found {len(page_data)} pages:")
-    # for page in page_data.values():
-    #     print(f"- {page['url']}: {len(page['outgoing_links'])} outgoing links")
     write_json_report(page_data, "report.json")
     sys.exit(0)
 
