@@ -1,6 +1,8 @@
-from urllib.parse import urlparse, urljoin
-from bs4 import BeautifulSoup, Tag
 from typing import TypedDict
+from urllib.parse import urljoin, urlparse
+
+import requests
+from bs4 import BeautifulSoup, Tag
 
 
 class PageData(TypedDict):
@@ -9,6 +11,51 @@ class PageData(TypedDict):
     first_paragraph: str
     outgoing_links: list[str]
     image_urls: list[str]
+
+
+def crawl_page(
+    base_url: str, current_url: str = None, page_data: dict[str, PageData] = None
+):
+    parsed_base_url = urlparse(base_url)
+    parsed_current_url = urlparse(current_url)
+
+    if parsed_base_url.netloc != parsed_current_url.netloc:
+        return
+
+    norm_current_url = normalize_url(current_url)
+    if norm_current_url in page_data.keys():
+        return
+
+    html_body = safe_get_html(current_url)
+    extracted_html_elems = extract_page_data(html_body, current_url)
+    page_data[norm_current_url] = extracted_html_elems
+
+    for url in extracted_html_elems["outgoing_links"]:
+        crawl_page(base_url, url, page_data)
+
+
+def get_html(url):
+    try:
+        res = requests.get(url, headers={"User-Agent": "BootCrawler/1.0"})
+    except Exception as e:
+        raise Exception(f"network error while fetching {url}: {e}")
+
+    if res.status_code > 399:
+        raise Exception(f"{res.status_code} error: {res.reason}")
+
+    content_type = res.headers.get("Content-Type")
+    if "text/html" not in content_type:
+        raise Exception(f"content type not text/html: {content_type}")
+
+    return res.text
+
+
+def safe_get_html(url: str) -> str | None:
+    try:
+        return get_html(url)
+    except Exception as e:
+        print(f"{e}")
+        return None
 
 
 def normalize_url(url: str) -> str:
